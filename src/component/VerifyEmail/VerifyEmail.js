@@ -17,11 +17,14 @@ const VerifyEmail = () => {
     setMessage("");
     try {
       const token = localStorage.getItem("authToken"); // Lấy token từ localStorage
-      const response = await axios.get("http://localhost:8000/api/email/verify/send", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/email/verify/send`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setMessage(response.data.message || "Đã gửi email xác thực!");
     } catch (error) {
       setMessage(
@@ -38,8 +41,8 @@ const VerifyEmail = () => {
         Vui lòng kiểm tra email của bạn!
       </Typography>
       <Typography variant="body1" gutterBottom>
-        Một email xác minh đã được gửi đến địa chỉ email của bạn. 
-        Hãy kiểm tra hộp thư và nhấp vào liên kết xác minh để hoàn tất đăng ký.
+        Một email xác minh đã được gửi đến địa chỉ email của bạn. Hãy kiểm tra
+        hộp thư và nhấp vào liên kết xác minh để hoàn tất đăng ký.
       </Typography>
       {message && (
         <Typography
