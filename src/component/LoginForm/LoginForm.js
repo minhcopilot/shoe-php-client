@@ -10,7 +10,12 @@ import React, { useState } from "react";
 import { useStyles } from "./styles";
 import bgLogin from "../../assets/images/login1.png";
 import bgLogin2 from "../../assets/images/login-2.png";
-import { BiMailSend, BiLockAlt, BiRightArrowAlt, BiLogoGoogle } from "react-icons/bi"; // Biểu tượng Google
+import {
+  BiMailSend,
+  BiLockAlt,
+  BiRightArrowAlt,
+  BiLogoGoogle,
+} from "react-icons/bi"; // Biểu tượng Google
 import { Link, useHistory } from "react-router-dom";
 import * as yup from "yup";
 import { useForm } from "react-hook-form";
@@ -57,7 +62,7 @@ const LoginForm = () => {
 
   const handleGoogleLogin = async () => {
     // Chuyển hướng đến Google Login API
-    window.location.href = "http://127.0.0.1:8000/auth/google/redirect";
+    window.location.href = `${process.env.REACT_APP_API_URL}/auth/google/redirect`;
   };
 
   return (
@@ -109,7 +114,7 @@ const LoginForm = () => {
           <Button className={classes.action} type="submit">
             Đăng nhập
           </Button>
-          
+
           {/* Nút đăng nhập với Google */}
           <Button
             className={classes.actionGoogle}
@@ -118,7 +123,7 @@ const LoginForm = () => {
           >
             Đăng nhập với Google
           </Button>
-          
+
           <Link to="/forgot-password" className={classes.redirect}>
             Quên mật khẩu?
           </Link>

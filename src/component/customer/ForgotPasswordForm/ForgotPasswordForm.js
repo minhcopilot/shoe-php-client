@@ -31,7 +31,7 @@ const ForgotPasswordForm = () => {
 
     try {
       // Gửi POST request
-      await axios.post("http://127.0.0.1:8000/api/forgot-password", {
+      await axios.post(`${process.env.REACT_APP_API_URL}/forgot-password`, {
         email: email,
       });
 
