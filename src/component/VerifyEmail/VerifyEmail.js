@@ -17,6 +17,11 @@ const VerifyEmail = () => {
     setMessage("");
     try {
       const token = localStorage.getItem("authToken"); // Lấy token từ localStorage
+      if (!token) {
+        setMessage("Token không tồn tại! Vui lòng đăng nhập lại.");
+        setLoading(false);
+        return;
+      }
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/email/verify/send`,
         {
@@ -47,7 +52,10 @@ const VerifyEmail = () => {
       {message && (
         <Typography
           variant="body2"
-          style={{ color: "green", marginTop: "10px" }}
+          style={{
+            color: message.includes("không") ? "red" : "green",
+            marginTop: "10px",
+          }}
         >
           {message}
         </Typography>
