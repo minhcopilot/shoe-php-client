@@ -62,7 +62,7 @@ const LoginForm = () => {
 
   const handleGoogleLogin = async () => {
     // Chuyển hướng đến Google Login API
-    window.location.href = `https://shoe-php-api.onrender.com/auth/google/redirect`;
+    window.location.href = `${process.env.REACT_APP_API_URL_GG}/auth/google/redirect`;
   };
 
   return (
