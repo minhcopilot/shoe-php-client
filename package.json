@@ -34,7 +34,7 @@
     "react-redux": "^7.2.6",
     "react-responsive-carousel": "^3.2.22",
     "react-router-dom": "^5.3.0",
-    "react-scripts": "^4.0.3",
+    "react-scripts": "5.0.1",
     "react-spinners": "^0.11.0",
     "react-stripe-checkout": "^2.6.3",
     "react-toastify": "^8.2.0",
@@ -46,8 +46,8 @@
     "yup": "^0.32.11"
   },
   "scripts": {
-    "start": "SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts start",
-    "build": "SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
+    "start": "react-scripts start",
+    "build": "set NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -69,5 +69,8 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:8000/"
+  "proxy": "http://localhost:8000/",
+  "engines": {
+    "node": "16.x"
+  }
 }
