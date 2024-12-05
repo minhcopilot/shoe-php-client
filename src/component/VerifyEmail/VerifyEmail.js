@@ -16,7 +16,7 @@ const VerifyEmail = () => {
     setLoading(true);
     setMessage("");
     try {
-      const token = localStorage.getItem("authToken"); // Lấy token từ localStorage
+      const token = localStorage.getItem("token");
       if (!token) {
         setMessage("Token không tồn tại! Vui lòng đăng nhập lại.");
         setLoading(false);

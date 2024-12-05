@@ -21,6 +21,11 @@ import { useStyles } from "./styles";
 import orderAPI from "../../../api/orderApi";
 import CloseIcon from '@material-ui/icons/Close';
 
+import { toast, ToastContainer } from "react-toastify"; // Import react-toastify
+import "react-toastify/dist/ReactToastify.css"; // Import the styles
+import Swal from 'sweetalert2';
+
+import { CircularProgress } from "@material-ui/core";
 
 const Order = () => {
   const classes = useStyles();
@@ -36,51 +41,95 @@ const Order = () => {
     sdt: "",
   });
 
-  // Fetch orders
+  const [loading, setLoading] = useState(true); // Trạng thái loading
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errors, setErrors] = useState({ address: "", sdt: "" });
+
+
   const fetchOrders = async () => {
     try {
+      setLoading(true); // Bắt đầu tải
       const data = await orderAPI.getAllOrders();
       setOrders(data);
+      setLoading(false); // Đã tải xong
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      toast.error("Lỗi khi tải danh sách đơn hàng!");
+      setLoading(false); // Dù có lỗi thì cũng phải dừng loading
     }
   };
 
-  // Cancel order
+
+  // Handle cancel order
   const handleCancelOrder = async (orderId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn huỷ đơn hàng này không?")) return;
+    const result = await Swal.fire({
+      title: 'Bạn có chắc chắn muốn huỷ đơn hàng này không?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Huỷ',
+      cancelButtonText: 'Hủy bỏ',
+    });
+
+    if (!result.isConfirmed) return;
+    
     try {
-      await orderAPI.deleteOrder(orderId); // Assuming you have a cancelOrder API
-      setOrders(orders.filter((order) => order.id !== orderId));
-      alert("Huỷ đơn hàng thành công!");
+      // Call API to update the order status
+      setLoading(true);
+      await orderAPI.updateOrderStatus(orderId, { status: 'Huỷ' });
+      // Update the orders list without reloading the page
+      setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+      toast.success("Đơn hàng đã được huỷ!");
+      setLoading(false);
     } catch (error) {
       console.error("Error cancelling order:", error);
-      alert("Không thể huỷ đơn hàng.");
+      toast.error("Không thể huỷ đơn hàng.");
+      setLoading(false);
     }
   };
 
-  const handleOrderDetailClick = async (orderId) => {
-    console.log("orderId:", orderId); // Log để kiểm tra giá trị orderId
+  // Handle delete order
+  const handleDeleteOrder = async (orderId) => {
+    const result = await Swal.fire({
+      title: 'Bạn có chắc chắn muốn xoá đơn hàng này không?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Xoá',
+      cancelButtonText: 'Hủy bỏ',
+    });
+
+    if (!result.isConfirmed) return;
     try {
-      const response = await orderAPI.getOrderDetail(orderId); // Gọi API
+      // Call API to delete the order
+      setLoading(true);
+      await orderAPI.deleteOrder(orderId);
+      // Update the orders list without reloading the page
+      setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+      toast.success("Đơn hàng đã bị xoá.");
+      setLoading(false);
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      toast.error("Không thể xoá đơn hàng.");
+      setLoading(false);
+    }
+  };
 
 
-      // Kiểm tra phản hồi hợp lệ và trả về chi tiết đơn hàng
+  const handleOrderDetailClick = async (orderId) => {
+    setLoading(true);
+    try {
+      const response = await orderAPI.getOrderDetail(orderId);
       if (!response || !response.order) {
         console.error("Không có dữ liệu đơn hàng");
         return;
       }
-
-      const order = response.order;
-      setCurrentOrder(order); // Lưu thông tin chi tiết đơn hàng vào state
-      setOpenDetailModal(true); // Mở modal hiển thị chi tiết đơn hàng
-
+      setLoading(false);
+      setCurrentOrder(response.order);
+      setOpenDetailModal(true);
     } catch (error) {
       console.error("Lỗi khi lấy chi tiết đơn hàng:", error.message);
+      setLoading(false);
     }
   };
 
-  // Open modal for editing order
   const openModalHandler = (order) => {
     setCurrentOrder(order);
     setFormData({
@@ -93,28 +142,59 @@ const Order = () => {
     setOpenModal(true);
   };
 
-  // Handle form submission for updating order
   const handleSubmit = async () => {
+    let formIsValid = true;
+    let newErrors = { address: "", sdt: "" };
+
+    // Kiểm tra Địa chỉ
+    if (!formData.address.trim()) {
+      newErrors.address = "Địa chỉ không được để trống!";
+      formIsValid = false;
+    }
+
+    // Kiểm tra Số điện thoại
+    const phoneRegex = /^[0-9]{10}$/; // Kiểm tra số điện thoại phải là 10 chữ số
+    if (!formData.sdt.trim()) {
+      newErrors.sdt = "Số điện thoại không được để trống!";
+      formIsValid = false;
+    } else if (!phoneRegex.test(formData.sdt)) {
+      newErrors.sdt = "Số điện thoại phải có 10 chữ số!";
+      formIsValid = false;
+    }
+
+    // Cập nhật lỗi vào state
+    setErrors(newErrors);
+
+    if (!formIsValid) {
+      return; // Nếu form không hợp lệ, dừng lại và không gửi dữ liệu
+    }
+
+    // Đặt trạng thái là đang xử lý
+    setIsProcessing(true);
+
     try {
       if (currentOrder) {
         // Cập nhật cả địa chỉ và số điện thoại
-        await orderAPI.updateOrder(currentOrder.id, {
+        await orderAPI.updateOrderDetails(currentOrder.id, {
           address: formData.address,
-          sdt: formData.sdt,  // Thêm sdt vào payload
+          sdt: formData.sdt, // Thêm sdt vào payload
         });
 
-        alert("Cập nhật thành công!");
+        // Sau khi gửi thành công, cập nhật trạng thái và hiển thị thông báo
+        setIsProcessing(false); // Tắt loading
+        toast.success("Cập nhật thành công!");
         setOpenModal(false);
         fetchOrders(); // Refresh danh sách đơn hàng
       }
     } catch (error) {
+      // Xử lý lỗi nếu có
       console.error("Error submitting order:", error);
-      alert("Có lỗi xảy ra.");
+      toast.error("Có lỗi xảy ra khi cập nhật.");
+      setIsProcessing(false); // Tắt loading nếu có lỗi
     }
   };
 
 
-  // Get color based on order status
   const getStatusColor = (status) => {
     switch (status) {
       case "Chờ xác nhận":
@@ -126,9 +206,13 @@ const Order = () => {
       case "Huỷ":
         return "red";
       default:
-        return "grey"; // Default color for other statuses
+        return "grey";
     }
   };
+
+ 
+  
+  
 
   useEffect(() => {
     fetchOrders();
@@ -145,104 +229,126 @@ const Order = () => {
           <Typography variant="h3" className={classes.heading}>
             Chi tiết đơn hàng
           </Typography>
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+              <CircularProgress />
+              <Typography variant="h6" style={{ marginLeft: "20px" }}>
+                Đang tải ...
+              </Typography>
+            </Box>
+          ) : (
 
-          <TableContainer component={Paper} elevation="0">
-            <Table className={classes.table} aria-label="simple table">
-              <TableHead>
-                <TableRow>
-                  <TableCell align="center" className={classes.tableHead}>
-                    Mã đơn hàng
-                  </TableCell>
-                  <TableCell align="center" className={classes.tableHead}>
-                    Địa chỉ
-                  </TableCell>
-                  <TableCell align="center" className={classes.tableHead}>
-                    Sdt
-                  </TableCell>
-                  <TableCell align="center" className={classes.tableHead}>
-                    Tổng tiền
-                  </TableCell>
-                  <TableCell align="center" className={classes.tableHead}>
-                    Thanh toán
-                  </TableCell>
-                  <TableCell align="center" className={classes.tableHead}>
-                    Trạng thái
-                  </TableCell>
-                  <TableCell align="center" className={classes.tableHead}>
-                    Hành động
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell
-                      align="center"
-                      onClick={() => handleOrderDetailClick(order.id)}
-                      style={{
-                        cursor: "pointer",
-                        textDecoration: "none", // Default, no underline
-                        color: "blue",
-                        transition: "text-decoration 0.3s ease",
-
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.textDecoration = "underline";
-                        e.target.style.textDecorationColor = "blue";
-                        e.target.style.textDecorationThickness = "2px"; // Optional: Adjust thickness
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.textDecoration = "none"; // Remove underline on hover out
-                      }}
-                    >
-                      {order.id}
+            <TableContainer component={Paper} elevation="0">
+              <Table className={classes.table} aria-label="simple table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell align="center" className={classes.tableHead}>
+                      Mã đơn hàng
                     </TableCell>
-
-                    <TableCell align="center">{order.address}</TableCell>
-                    <TableCell align="center">{order.sdt}</TableCell>
-                    <TableCell align="center">{new Intl.NumberFormat('vi-VN').format(order.total_price)} VND</TableCell>
-                    <TableCell align="center">{order.payment_method}</TableCell>
-                    <TableCell align="center">
-                      <Typography
+                    <TableCell align="center" className={classes.tableHead}>
+                      Địa chỉ
+                    </TableCell>
+                    <TableCell align="center" className={classes.tableHead}>
+                      Sdt
+                    </TableCell>
+                    <TableCell align="center" className={classes.tableHead}>
+                      Tổng tiền
+                    </TableCell>
+                    <TableCell align="center" className={classes.tableHead}>
+                      Thanh toán
+                    </TableCell>
+                    <TableCell align="center" className={classes.tableHead}>
+                      Trạng thái
+                    </TableCell>
+                    <TableCell align="center" className={classes.tableHead}>
+                      Hành động
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell
+                        align="center"
+                        onClick={() => handleOrderDetailClick(order.id)}
                         style={{
-                          color: getStatusColor(order.status),
-                          fontWeight: "bold",
+                          cursor: "pointer",
+                          color: "blue",
+                          transition: "text-decoration 0.3s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.textDecoration = "underline";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.textDecoration = "none";
                         }}
                       >
-                        {order.status}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      {order.status === "Chờ xác nhận" && (
-                        <>
-                          <Button
-                            variant="contained"
-                            color="secondary"
-                            onClick={() => openModalHandler(order)}
-                            style={{ marginRight: "10px" }}
-                          >
-                            Sửa
-                          </Button>
+                        {order.id}
+                      </TableCell>
+
+                      <TableCell align="center">{order.address}</TableCell>
+                      <TableCell align="center">{order.sdt}</TableCell>
+                      <TableCell align="center">{new Intl.NumberFormat('vi-VN').format(order.total_price)} VND</TableCell>
+                      <TableCell align="center">{order.payment_method}</TableCell>
+                      <TableCell align="center">
+                        <Typography
+                          style={{
+                            color: getStatusColor(order.status),
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {order.status}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        {order.status !== "Huỷ" && (
+                          <>
+                            <Button
+                              variant="contained"
+                              color="secondary"
+                              onClick={() => openModalHandler(order)}
+                              style={{ marginRight: "10px" }}
+                            >
+                              Sửa
+                            </Button>
+                            <Button
+                              variant="contained"
+                              style={{
+                                backgroundColor: "red",
+                                color: "#fff",
+                              }}
+                              onClick={() => handleCancelOrder(order.id)}
+                            >
+                              {isProcessing ? (
+                                <CircularProgress size={24} color="inherit" />
+                              ) : (
+                                "Huỷ"
+                              )}
+                            </Button>
+                          </>
+                        )}
+                        {order.status === "Huỷ" && (
                           <Button
                             variant="contained"
                             style={{
-                              backgroundColor: "red",
+                              backgroundColor: "gray",
                               color: "#fff",
                             }}
-                            onClick={() => handleCancelOrder(order.id)}
+                            onClick={() => handleDeleteOrder(order.id)}
                           >
-                            Huỷ
+                            Xoá
                           </Button>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </Box>
 
+        {/* Modal for updating order */}
         <Modal open={openModal} onClose={() => setOpenModal(false)}>
           <Box
             className={classes.modal}
@@ -259,6 +365,7 @@ const Order = () => {
                 <CloseIcon />
               </IconButton>
             </Box>
+
             <TextField
               label="Địa chỉ"
               fullWidth
@@ -267,15 +374,19 @@ const Order = () => {
                 setFormData({ ...formData, address: e.target.value })
               }
               margin="normal"
+              error={!!errors.address} // Hiển thị lỗi nếu có
+              helperText={errors.address} // Hiển thị thông báo lỗi
             />
             <TextField
-              label="Sdt"
+              label="Số điện thoại"
               fullWidth
               value={formData.sdt}
               onChange={(e) =>
                 setFormData({ ...formData, sdt: e.target.value })
               }
               margin="normal"
+              error={!!errors.sdt} // Hiển thị lỗi nếu có
+              helperText={errors.sdt} // Hiển thị thông báo lỗi
             />
             {/* Disable other fields when updating */}
             <TextField
@@ -307,16 +418,21 @@ const Order = () => {
                 marginTop: "20px",
                 backgroundColor: "#4caf50", // Green button for better visibility
                 color: "#fff",
+
               }}
+              disabled={isProcessing} // Vô hiệu hóa nút khi đang xử lý
+
             >
-              Cập nhật
+              {isProcessing ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Cập nhật"
+              )}
             </Button>
           </Box>
         </Modal>
 
         {/* Modal for order details */}
-
-
         <Modal open={openDetailModal} onClose={() => setOpenDetailModal(false)}>
           <Box
             style={{
@@ -463,7 +579,7 @@ const Order = () => {
                     {/* Ảnh sản phẩm */}
                     <Box style={{ flex: 1, display: "flex", justifyContent: "center" }}>
                       <img
-                        src={item.image} // Giả sử đây là đường dẫn ảnh
+                        src={item.image && item.image.length > 0 ? item.image[0] : "default-image.jpg"} // Fallback image if no image
                         alt={item.product_name}
                         style={{
                           width: "80px", // Giới hạn kích thước ảnh
@@ -496,10 +612,11 @@ const Order = () => {
             </Box>
           </Box>
         </Modal>
-
+        <ToastContainer />
       </CustomerLayout>
     </>
   );
 };
 
 export default Order;
+
