@@ -62,7 +62,7 @@ const LoginForm = () => {
 
   const handleGoogleLogin = async () => {
     // Chuyển hướng đến Google Login API
-    window.location.href = `${process.env.REACT_APP_API_URL_GG}/auth/google/redirect`;
+    window.location.href = `http://127.0.0.1:8000/auth/google/redirect`;
   };
 
   return (
